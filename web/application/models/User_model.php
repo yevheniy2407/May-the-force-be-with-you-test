@@ -145,7 +145,7 @@ class User_model extends Emerald_model {
         return $this->likes_balance;
     }
 
-    public function set_likes_balance($likes_balance):bool
+    protected function set_likes_balance($likes_balance): bool
     {
         $this->likes_balance = $likes_balance;
         return $this->save('likes_balance', $likes_balance);
@@ -164,7 +164,7 @@ class User_model extends Emerald_model {
      *
      * @return bool
      */
-    public function set_wallet_balance(float $wallet_balance):bool
+    protected function set_wallet_balance(float $wallet_balance):bool // allow changing balance only from User model, after updating refilled and withdrawn balances
     {
         $this->wallet_balance = $wallet_balance;
         return $this->save('wallet_balance', $wallet_balance);
@@ -183,7 +183,7 @@ class User_model extends Emerald_model {
      *
      * @return bool
      */
-    public function set_wallet_total_refilled(float $wallet_total_refilled):bool
+    protected function set_wallet_total_refilled(float $wallet_total_refilled):bool
     {
         $this->wallet_total_refilled = $wallet_total_refilled;
         return $this->save('wallet_total_refilled', $wallet_total_refilled);
@@ -202,7 +202,7 @@ class User_model extends Emerald_model {
      *
      * @return bool
      */
-    public function set_wallet_total_withdrawn(float $wallet_total_withdrawn):bool
+    protected function set_wallet_total_withdrawn(float $wallet_total_withdrawn):bool
     {
         $this->wallet_total_withdrawn = $wallet_total_withdrawn;
         return $this->save('wallet_total_withdrawn', $wallet_total_withdrawn);
@@ -261,13 +261,40 @@ class User_model extends Emerald_model {
 
     /**
      * @param float $sum
+     * @param string $object
+     * @param string $action
+     * @param int|null $object_id
      *
      * @return bool
      * @throws \ShadowIgniterException
      */
-    public function add_money(float $sum): bool
+    public function add_money(float $sum, string $object, string $action, int $object_id = null): bool
     {
-        // TODO: task 4, добавление денег
+        $is_refilled_affected = $this->set_wallet_total_refilled($this->get_wallet_total_refilled() + $sum);
+        if ( ! $is_refilled_affected)
+        {
+            return FALSE;
+        }
+
+        $is_balance_affected = $this->set_wallet_balance($this->get_wallet_balance() + $sum);
+        if ( ! $is_balance_affected)
+        {
+            return FALSE;
+        }
+
+        $analytics_data = [
+            'user_id' => $this->get_id(),
+            'object' => $object,
+            'action' => $action,
+            'object_id' => $object_id,
+            'amount' => $sum
+        ];
+
+        $analytics_id = Analytics_model::create($analytics_data);
+        if ( ! $analytics_id)
+        {
+            return FALSE;
+        }
 
         return TRUE;
     }
@@ -275,13 +302,40 @@ class User_model extends Emerald_model {
 
     /**
      * @param float $sum
+     * @param string $object
+     * @param string $action
+     * @param int|null $object_id
      *
      * @return bool
      * @throws \ShadowIgniterException
      */
-    public function remove_money(float $sum): bool
+    public function remove_money(float $sum, string $object, string $action, int $object_id = null): bool
     {
-        // TODO: task 5, списание денег
+        $is_withdrawn_affected = $this->set_wallet_total_withdrawn($this->get_wallet_total_withdrawn() + $sum);
+        if ( ! $is_withdrawn_affected)
+        {
+            return FALSE;
+        }
+
+        $is_balance_affected = $this->set_wallet_balance($this->get_wallet_balance() - $sum);
+        if ( ! $is_balance_affected)
+        {
+            return FALSE;
+        }
+
+        $analytics_data = [
+            'user_id' => $this->get_id(),
+            'object' => $object,
+            'action' => $action,
+            'object_id' => $object_id,
+            'amount' => $sum
+        ];
+
+        $analytics_id = Analytics_model::create($analytics_data);
+        if ( ! $analytics_id)
+        {
+            return FALSE;
+        }
 
         return TRUE;
     }
@@ -290,7 +344,7 @@ class User_model extends Emerald_model {
      * @return bool
      * @throws Exception
      */
-    public function decrement_likes(): bool
+    public function decrement_likes(string $object, string $action, int $object_id = null): bool
     {
         App::get_s()->from(self::get_table())
             ->where(['id' => $this->get_id()])
@@ -298,6 +352,55 @@ class User_model extends Emerald_model {
             ->execute();
 
         if ( ! App::get_s()->is_affected())
+        {
+            return FALSE;
+        }
+
+        $analytics_data = [
+            'user_id' => $this->get_id(),
+            'object' => $object,
+            'action' => $action,
+            'object_id' => $object_id,
+            'amount' => 1
+        ];
+
+        $analytics_id = Analytics_model::create($analytics_data);
+        if ( ! $analytics_id)
+        {
+            return FALSE;
+        }
+
+        return TRUE;
+    }
+
+    /**
+     * @param int $sum
+     *
+     * @return bool
+     * @throws Exception
+     */
+    public function add_likes(int $sum, string $object, string $action, int $object_id = null): bool
+    {
+        App::get_s()->from(self::get_table())
+            ->where(['id' => $this->get_id()])
+            ->update(sprintf('likes_balance = likes_balance + %s', App::get_s()->quote($sum)))
+            ->execute();
+
+        if ( ! App::get_s()->is_affected())
+        {
+            return FALSE;
+        }
+
+        $analytics_data = [
+            'user_id' => $this->get_id(),
+            'object' => $object,
+            'action' => $action,
+            'object_id' => $object_id,
+            'amount' => $sum
+        ];
+
+        $analytics_id = Analytics_model::create($analytics_data);
+        if ( ! $analytics_id)
         {
             return FALSE;
         }
@@ -346,7 +449,10 @@ class User_model extends Emerald_model {
      */
     public static function find_user_by_email(string $email): User_model
     {
-        // TODO: task 1, аутентификация
+        return static::transform_one(App::get_s()->from(self::CLASS_TABLE)
+            ->where(['email' => $email])
+            ->select()
+            ->one());
     }
 
     /**

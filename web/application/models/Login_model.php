@@ -3,7 +3,6 @@
 namespace Model;
 
 use App;
-use Exception;
 use System\Core\CI_Model;
 
 class Login_model extends CI_Model {
@@ -19,25 +18,8 @@ class Login_model extends CI_Model {
         App::get_ci()->session->unset_userdata('id');
     }
 
-    /**
-     * @return User_model
-     * @throws Exception
-     */
-    public static function login(): User_model
+    public static function login(User_model $user)
     {
-        // TODO: task 1, аутентификация
-
-        self::start_session();
-    }
-
-    public static function start_session(int $user_id)
-    {
-        // если перенедан пользователь
-        if (empty($user_id))
-        {
-            throw new Exception('No id provided!');
-        }
-
-        App::get_ci()->session->set_userdata('id', $user_id);
+        App::get_ci()->session->set_userdata('id', $user->get_id());
     }
 }

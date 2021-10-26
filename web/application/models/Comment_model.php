@@ -4,6 +4,7 @@ namespace Model;
 
 use App;
 use Exception;
+use Model\Enum\Transaction_type;
 use stdClass;
 use System\Emerald\Emerald_model;
 
@@ -228,6 +229,18 @@ class Comment_model extends Emerald_Model {
     }
 
     /**
+     * @param int $comment_id
+     *
+     * @return Comment_model
+     */
+    public static function find_comment_by_id(int $comment_id): Comment_model
+    {
+        return static::transform_one(App::get_s()->from(self::CLASS_TABLE)
+            ->where(['id' => $comment_id])
+            ->one());
+    }
+
+    /**
      * @param int $assign_id
      * @return self[]
      * @throws Exception
@@ -245,12 +258,29 @@ class Comment_model extends Emerald_Model {
      */
     public function increment_likes(User_model $user): bool
     {
-        // TODO: task 3, лайк комментария
+        if ( ! $user->get_likes_balance())
+        {
+            return FALSE;
+        }
+
+        $is_likes_decremented = $user->decrement_likes(Analytics_model::OBJECT_COMMENT, Transaction_type::SPEND_LIKES, $this->get_id());
+        if ( ! $is_likes_decremented)
+        {
+            return FALSE;
+        }
+
+        $is_likes_set = $this->set_likes($this->get_likes() + 1);
+        if ( ! $is_likes_set)
+        {
+            return FALSE;
+        }
+
+        return TRUE;
     }
 
     public static function get_all_by_replay_id(int $reply_id)
     {
-        // TODO task 2, дополнительно, вложенность комментариев
+        return static::transform_many(App::get_s()->from(self::CLASS_TABLE)->where(['reply_id' => $reply_id])->orderBy('time_created', 'ASC')->many());
     }
 
     /**
