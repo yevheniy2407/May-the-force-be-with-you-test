@@ -88,4 +88,13 @@ class Item_model extends Emerald_model {
 
         return App::get_s()->is_affected();
     }
+
+    public static function get_random_items_by_max_price(int $price): array
+    {
+        return static::transform_many(App::get_s()->from(self::CLASS_TABLE)
+            ->where(['price <=' => $price])
+            ->orderBy('rand()', '')
+            ->limit(1)
+            ->many());
+    }
 }

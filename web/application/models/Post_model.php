@@ -2,6 +2,7 @@
 namespace Model;
 use App;
 use Exception;
+use Model\Enum\Transaction_type;
 use stdClass;
 use System\Emerald\Emerald_model;
 
@@ -151,7 +152,7 @@ class Post_model extends Emerald_Model
      */
     public function get_comments():array
     {
-       // TODO: task 2, комментирование
+       return Comment_model::get_all_by_assign_id($this->get_id());
     }
 
     /**
@@ -199,6 +200,18 @@ class Post_model extends Emerald_Model
     }
 
     /**
+     * @param int $post_id
+     *
+     * @return Post_model
+     */
+    public static function find_post_by_id(int $post_id): Post_model
+    {
+        return static::transform_one(App::get_s()->from(self::CLASS_TABLE)
+            ->where(['id' => $post_id])
+            ->one());
+    }
+
+    /**
      * @return static[]
      * @throws Exception
      */
@@ -215,7 +228,22 @@ class Post_model extends Emerald_Model
      */
     public function increment_likes(User_model $user): bool
     {
-        // TODO: task 3, лайк поста
+        if ( ! $user->get_likes_balance())
+        {
+            return FALSE;
+        }
+
+        if ( ! $user->decrement_likes(Analytics_model::OBJECT_POST, Transaction_type::SPEND_LIKES, $this->get_id()))
+        {
+            return FALSE; // TODO: better to throw exception
+        }
+
+        if ( ! $this->set_likes($this->get_likes() + 1))
+        {
+            return FALSE;
+        }
+
+        return TRUE;
     }
 
 

@@ -7,11 +7,16 @@ class Analytics_model extends Emerald_Model
 {
     const CLASS_TABLE = 'analytics';
 
+    const OBJECT_WALLET = 'wallet';
+    const OBJECT_BOOSTERPACK = 'boosterpack';
+    const OBJECT_POST = 'post';
+    const OBJECT_COMMENT = 'comment';
+
     /** @var Int */
     protected $user_id;
     /** @var String describes the object with which it is carried interaction (boosterpack, wallet, etc)  */
     protected $object;
-    /** @var Int action with object (buy boosterpack, add money to wallet ...) */
+    /** @var String action with object (buy boosterpack, add money to wallet ...) */
     protected $action;
     /** @var Int object id with which user interaction */
     protected $object_id;
@@ -60,9 +65,9 @@ class Analytics_model extends Emerald_Model
     }
 
     /**
-     * @return Int
+     * @return String
      */
-    public function get_action():int
+    public function get_action():string
     {
         return $this->action;
     }
